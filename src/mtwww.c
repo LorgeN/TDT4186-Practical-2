@@ -15,7 +15,7 @@ typedef struct conn_t
 {
     struct sockaddr_in remote_addr; // todo: remove this later
     struct sockaddr_in local_addr;
-};
+} conn_t;
 
 int main(void)
 {
@@ -59,37 +59,42 @@ int main(void)
     }
     printf("\nListening for incoming connections.....\n");
 
-    // Accept an incoming connection:
-    client_size = sizeof(client_addr);
-    client_sock = accept(socket_desc, (struct sockaddr *)&client_addr, &client_size);
-
-    if (client_sock < 0)
+    while (1)
     {
-        printf("Can't accept\n");
-        return -1;
-    }
-    printf("Client connected at IP: %s and port: %i\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
+        // Accept an incoming connection:
+        client_size = sizeof(client_addr);
+        client_sock = accept(socket_desc, (struct sockaddr *)&client_addr, &client_size);
+        if (client_sock < 0)
+        {
+            printf("Can't accept\n");
+            return -1;
+        }
+        printf("Client connected at IP: %s and port: %i\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
 
-    // Receive client's message:
-    if (recv(client_sock, client_message, sizeof(client_message), 0) < 0)
-    {
-        printf("Couldn't receive\n");
-        return -1;
-    }
-    printf("Msg from client: %s\n", client_message);
+        // Receive client's message:
+        if (recv(client_sock, client_message, sizeof(client_message), 0) < 0)
+        {
+            printf("Couldn't receive\n");
+            return -1;
+        }
+        printf("Msg from client: %s\n", client_message);
 
-    // Respond to client:
-    strcpy(server_message, "This is the server's message.");
+        // Respond to client:
+        strcpy(server_message, "This is the server's message.");
 
-    if (send(client_sock, server_message, strlen(server_message), 0) < 0)
-    {
-        printf("Can't send\n");
-        return -1;
-    }
+        if (send(client_sock, server_message, strlen(server_message), 0) < 0)
+        {
+            printf("Can't send\n");
+            return -1;
+        }
+    
 
     // Closing the socket:
     close(client_sock);
+
+    };
     close(socket_desc);
+
 
     return 0;
 }
