@@ -89,7 +89,10 @@ int main(void)
         while (token != NULL)
         {
             printf("Trying to input to memmory\n");
-            strcpy(request[tokenPossition], token);
+            if (tokenPossition < 4)
+            {
+                strcpy(request[tokenPossition], token);
+            }
             printf("%s\n", token);
             token = strtok(NULL, delim);
             tokenPossition++;
@@ -98,6 +101,7 @@ int main(void)
         printf("While loop finished\n");
 
         printf("Token first possition: %s\n", request[0]);
+        printf("Token path: %s \n", request[1]);
 
         // Respond to client:
         strcpy(server_message, "This is the server's message.");
