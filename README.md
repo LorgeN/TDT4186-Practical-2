@@ -13,5 +13,5 @@ Simply run `make` to build the project. The compiled program will be located at 
 # Testing with curl
 
 ```bash
- curl --http0.9 <url>/<path>
+ curl --http0.9 localhost:6969/lorgs
 ```
