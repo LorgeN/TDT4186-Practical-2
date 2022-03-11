@@ -77,7 +77,27 @@ int main(void)
             printf("Couldn't receive\n");
             return -1;
         }
-        printf("Msg from client: %s\n", client_message);
+
+        printf("Trying to access more memory\n");
+        char request[3][4096];
+
+        char delim[] = " ";
+        char *token = strtok(client_message, delim);
+
+        int tokenPossition = 0;
+
+        while (token != NULL)
+        {
+            printf("Trying to input to memmory\n");
+            strcpy(request[tokenPossition], token);
+            printf("%s\n", token);
+            token = strtok(NULL, delim);
+            tokenPossition++;
+        }
+
+        printf("While loop finished\n");
+
+        printf("Token first possition: %s\n", request[0]);
 
         // Respond to client:
         strcpy(server_message, "This is the server's message.");
@@ -87,14 +107,11 @@ int main(void)
             printf("Can't send\n");
             return -1;
         }
-    
 
-    // Closing the socket:
-    close(client_sock);
-
+        // Closing the socket:
+        close(client_sock);
     };
     close(socket_desc);
-
 
     return 0;
 }
