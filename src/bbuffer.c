@@ -14,7 +14,12 @@ BNDBUF *bb_init(unsigned int size)
     buf->head = 0;
     buf->tail = 0;
 
-    pthread_mutex_init(buf->rw_lock, NULL);
+    int lock_res = pthread_mutex_init(buf->rw_lock, NULL);
+    if (lock_res == -1)
+    {
+        exit(EXIT_FAILURE); // Failed to allocate lock
+    }
+    
     buf->add_lock = add_lock;
     buf->rem_lock = rem_lock;
 
