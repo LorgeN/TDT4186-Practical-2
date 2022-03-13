@@ -44,15 +44,9 @@ void P(SEM *sem)
     continue without actually having available resource so we should check every
     time.
     */
-    while (1)
+    unsigned int val;
+    while (!(val = sem->value))
     {
-        unsigned int val = sem->value;
-
-        if (val)
-        {
-            break; // val is not 0, no resources available
-        }
-
         pthread_cond_wait(sem->cond, sem->lock);
     }
 
