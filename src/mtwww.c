@@ -4,6 +4,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <stdlib.h>
 
 typedef struct server_t
 {
@@ -17,8 +18,30 @@ typedef struct conn_t
     struct sockaddr_in local_addr;
 } conn_t;
 
+void read_file(char *filename) {
+    FILE *fptr;
+    if ((fptr = fopen(filename, "r")) == NULL) {
+        printf("Error trying to read file");
+        exit(1);
+    }
+    fseek(fptr, 0, SEEK_END);
+    long *size = ftell(fptr);
+    fseek(fptr, 0, SEEK_SET);
+    printf(size);
+}
+
 int main(void)
 {
+    char cwd[4000];
+    if (getcwd(cwd, sizeof(cwd)) != NULL)
+        printf("Det funker!\n");
+    else
+        return 1;
+    
+    printf("%s", cwd);
+
+    read_file("/home/erik98m/OS/TDT4186-Practical-2/src/www/lorgs.html");
+
     printf("Hello world!");
     int socket_desc, client_sock, client_size;
     struct sockaddr_in server_addr, client_addr;
