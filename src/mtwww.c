@@ -18,29 +18,33 @@ typedef struct conn_t
     struct sockaddr_in local_addr;
 } conn_t;
 
-void read_file(char *filename) {
+void read_file(char *filename, char* cwd) {
     FILE *fptr;
-    if ((fptr = fopen(filename, "r")) == NULL) {
+    
+    char *abs_path = strcat(cwd, filename);
+
+    printf("%s\n", abs_path);
+    if ((fptr = fopen(abs_path, "rb")) == NULL) {
         printf("Error trying to read file");
         exit(1);
     }
     fseek(fptr, 0, SEEK_END);
-    long *size = ftell(fptr);
+    long size = ftell(fptr);
     fseek(fptr, 0, SEEK_SET);
-    printf(size);
+    printf("%lu", size);
 }
 
 int main(void)
 {
-    char cwd[4000];
-    if (getcwd(cwd, sizeof(cwd)) != NULL)
+    char *cwd;
+    char tmp_cwd[4000];
+    if (getcwd(tmp_cwd, sizeof(tmp_cwd)) != NULL){
         printf("Det funker!\n");
-    else
+        cwd = strcat(tmp_cwd, "/src/www");
+    }else
         return 1;
-    
-    printf("%s", cwd);
 
-    read_file("/home/erik98m/OS/TDT4186-Practical-2/src/www/lorgs.html");
+    read_file("/lorgs.html", cwd);
 
     printf("Hello world!");
     int socket_desc, client_sock, client_size;
