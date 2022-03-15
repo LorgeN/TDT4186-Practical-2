@@ -20,15 +20,15 @@ typedef struct conn_t
     struct sockaddr_in local_addr;
 } conn_t;
 
-void read_file(char *filename, char *cwd)
-{
+void read_file(char *filename, char* cwd, int client_socket) {
     FILE *fptr;
-
-    char *abs_path = strcat(cwd, filename);
+    
+    char abs_path[512] = {0}; 
+    strcpy(abs_path, cwd);
+    strcat(abs_path, filename);
 
     printf("%s\n", abs_path);
-    if ((fptr = fopen(abs_path, "rb")) == NULL)
-    {
+    if ((fptr = fopen(abs_path, "rb")) == NULL) {
         printf("Error trying to read file");
         exit(1);
     }
@@ -36,6 +36,17 @@ void read_file(char *filename, char *cwd)
     long size = ftell(fptr);
     fseek(fptr, 0, SEEK_SET);
     printf("%lu", size);
+
+    char buffer[1000] = {0};
+    while (fgets(buffer, sizeof(buffer), fptr) != NULL)
+    {
+        if (send(client_socket, buffer, strlen(buffer), 0) < 0)
+        {
+            printf("Can't send\n");
+            exit(1);   
+        }
+        
+    }
 }
 
 void __process(int fd)
@@ -45,44 +56,7 @@ void __process(int fd)
     printf("%s > Hello, I've received fd %d\n", name, fd);
 }
 
-int main(void)
-{
-    printf("Starting up...\n");
 
-    worker_control_t *control = worker_init(8, 16, __process);
-    if (control == NULL)
-    {
-        printf("Failed to create workers!\n");
-        return EXIT_FAILURE;
-    }
-
-    struct timespec time, time2;
-    time.tv_sec = 0;
-    time.tv_nsec = 500000000L;
-
-    for (int fd = 0; fd <= 100; fd++)
-    {
-        printf("Main > Submitting fd %d\n", fd);
-        worker_submit(control, fd);
-
-        if (!(fd % 7))
-        {
-            nanosleep(&time, &time2);
-        }
-    }
-
-    printf("Main > Done!\n");
-    
-    time.tv_sec = 1;
-    nanosleep(&time, &time2);
-    printf("Main > Shutting down...\n");
-    
-    worker_destroy(control);
-    printf("Main > Good bye!\n");
-    
-    return EXIT_SUCCESS;
-}
-/*
 int main(void)
 {
     char *cwd;
@@ -94,8 +68,6 @@ int main(void)
     }
     else
         return 1;
-
-    read_file("/lorgs.html", cwd);
 
     printf("Hello world!");
     int socket_desc, client_sock, client_size;
@@ -176,6 +148,8 @@ int main(void)
             tokenPossition++;
         }
 
+        read_file(request[1], cwd, client_sock);
+
         printf("While loop finished\n");
 
         printf("Token first possition: %s\n", request[0]);
@@ -197,4 +171,3 @@ int main(void)
 
     return 0;
 }
-*/
