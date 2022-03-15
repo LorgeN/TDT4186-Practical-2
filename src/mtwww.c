@@ -1,10 +1,12 @@
-
 #include <stdio.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <pthread.h>
+#include "worker.h"
+#include <time.h>
 
 typedef struct server_t
 {
@@ -18,13 +20,15 @@ typedef struct conn_t
     struct sockaddr_in local_addr;
 } conn_t;
 
-void read_file(char *filename, char* cwd) {
+void read_file(char *filename, char *cwd)
+{
     FILE *fptr;
-    
+
     char *abs_path = strcat(cwd, filename);
 
     printf("%s\n", abs_path);
-    if ((fptr = fopen(abs_path, "rb")) == NULL) {
+    if ((fptr = fopen(abs_path, "rb")) == NULL)
+    {
         printf("Error trying to read file");
         exit(1);
     }
@@ -34,14 +38,61 @@ void read_file(char *filename, char* cwd) {
     printf("%lu", size);
 }
 
+void __process(int fd)
+{
+    char name[16];
+    get_thread_name(name);
+    printf("%s > Hello, I've received fd %d\n", name, fd);
+}
+
+int main(void)
+{
+    printf("Starting up...\n");
+
+    worker_control_t *control = worker_init(8, 16, __process);
+    if (control == NULL)
+    {
+        printf("Failed to create workers!\n");
+        return EXIT_FAILURE;
+    }
+
+    struct timespec time, time2;
+    time.tv_sec = 0;
+    time.tv_nsec = 500000000L;
+
+    for (int fd = 0; fd <= 100; fd++)
+    {
+        printf("Main > Submitting fd %d\n", fd);
+        worker_submit(control, fd);
+
+        if (!(fd % 7))
+        {
+            nanosleep(&time, &time2);
+        }
+    }
+
+    printf("Main > Done!\n");
+    
+    time.tv_sec = 1;
+    nanosleep(&time, &time2);
+    printf("Main > Shutting down...\n");
+    
+    worker_destroy(control);
+    printf("Main > Good bye!\n");
+    
+    return EXIT_SUCCESS;
+}
+/*
 int main(void)
 {
     char *cwd;
     char tmp_cwd[4000];
-    if (getcwd(tmp_cwd, sizeof(tmp_cwd)) != NULL){
+    if (getcwd(tmp_cwd, sizeof(tmp_cwd)) != NULL)
+    {
         printf("Det funker!\n");
         cwd = strcat(tmp_cwd, "/src/www");
-    }else
+    }
+    else
         return 1;
 
     read_file("/lorgs.html", cwd);
@@ -146,3 +197,4 @@ int main(void)
 
     return 0;
 }
+*/

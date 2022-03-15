@@ -1,37 +1,46 @@
-#include <sem.h>
+#include "sem.h"
 #include <stdlib.h>
+#include <stdio.h>
 
-SEM *sem_init(int initVal)
+SEM *sem_init(int initial)
 {
     SEM *sem = malloc(sizeof(SEM));
+    if (sem == NULL)
+    {
+        return NULL;
+    }
 
     // Nonrecursive lock
-    int lock_res = pthread_mutex_init(sem->lock, NULL);
-    if (lock_res == -1)
+    int lock_res = pthread_mutex_init(&sem->lock, NULL);
+    if (lock_res != 0)
     {
-        exit(EXIT_FAILURE); // Failed to allocate lock
+        free(sem);
+        return NULL;
     }
 
     // Condition variable for waiting for increment
-    int cond_res = pthread_cond_init(sem->cond, NULL);
-    if (cond_res == -1)
+    int cond_res = pthread_cond_init(&sem->cond, NULL);
+    if (cond_res != 0)
     {
-        exit(EXIT_FAILURE);
+        pthread_mutex_destroy(&sem->lock);
+        free(sem);
+        return NULL;
     }
 
+    sem->value = initial;
     return sem;
 }
 
 int sem_del(SEM *sem)
 {
-    pthread_mutex_destroy(sem->lock);
-    pthread_cond_destroy(sem->cond);
+    pthread_mutex_destroy(&sem->lock);
+    pthread_cond_destroy(&sem->cond);
     free(sem);
 }
 
 void P(SEM *sem)
 {
-    pthread_mutex_lock(sem->lock);
+    pthread_mutex_lock(&sem->lock);
 
     /*
     From documentation of pthread_cond_signal;
@@ -44,20 +53,21 @@ void P(SEM *sem)
     continue without actually having available resource so we should check every
     time.
     */
-    unsigned int val;
-    while (!(val = sem->value))
+    unsigned int val = sem->value;
+    while (!val)
     {
-        pthread_cond_wait(sem->cond, sem->lock);
+        pthread_cond_wait(&sem->cond, &sem->lock);
+        val = sem->value;
     }
 
     sem->value--;
-    pthread_mutex_unlock(sem->lock);
+    pthread_mutex_unlock(&sem->lock);
 }
 
 void V(SEM *sem)
 {
-    pthread_mutex_lock(sem->lock);
+    pthread_mutex_lock(&sem->lock);
     sem->value++;
-    pthread_mutex_unlock(sem->lock);
-    pthread_cond_signal(sem->cond);
+    pthread_mutex_unlock(&sem->lock);
+    pthread_cond_signal(&sem->cond);
 }

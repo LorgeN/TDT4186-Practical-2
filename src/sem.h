@@ -13,8 +13,8 @@
 
 typedef struct SEM
 {
-    pthread_mutex_t *lock;
-    pthread_cond_t *cond;
+    pthread_mutex_t lock;
+    pthread_cond_t cond;
     unsigned int value;
 } SEM;
 

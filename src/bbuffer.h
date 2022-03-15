@@ -27,7 +27,7 @@ typedef struct BNDBUF
     advantage to doing that to just using a normal lock. 
     */
 
-    pthread_mutex_t *rw_lock; // Lock for making sure we don't concurrently modify
+    pthread_mutex_t rw_lock; // Lock for making sure we don't concurrently modify
 
     SEM *add_lock; // Keeps track of amount of open slots in the buffer
     SEM *rem_lock; // Keeps track of amount of closed slots in the buffer
