@@ -25,7 +25,7 @@ void read_file(char *filename, char* cwd, int client_socket) {
     
     char abs_path[512] = {0}; 
     strcpy(abs_path, cwd);
-    strlcat(abs_path, filename, 4512);
+    strncat(abs_path, filename, 512 - strlen(abs_path));
 
     printf("%s\n", abs_path);
     if ((fptr = fopen(abs_path, "rb")) == NULL) {
