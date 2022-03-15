@@ -49,13 +49,6 @@ void read_file(char *filename, char* cwd, int client_socket) {
     }
 }
 
-void __process(int fd)
-{
-    char name[16];
-    get_thread_name(name);
-    printf("%s > Hello, I've received fd %d\n", name, fd);
-}
-
 
 int main(void)
 {

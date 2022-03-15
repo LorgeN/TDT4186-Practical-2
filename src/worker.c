@@ -77,15 +77,9 @@ worker_control_t *worker_init(unsigned int worker_count, unsigned int buffer_slo
     wc->fd_buffer = buf;
     wc->func = func;
 
-    char thread_name[16];
     for (unsigned int i = 0; i < worker_count; i++)
     {
         pthread_create(&threads[i], NULL, __work, (void *)wc);
-
-        sprintf(thread_name, "Worker %d", i);
-        pthread_setname_np(threads[i], thread_name);
-
-        printf("Created thread %s\n", thread_name);
     }
 
     wc->worker_threads = threads;
@@ -119,9 +113,4 @@ void worker_destroy(worker_control_t *control)
 void worker_submit(worker_control_t *control, int fd)
 {
     bb_add(control->fd_buffer, fd);
-}
-
-void get_thread_name(char *str)
-{
-    pthread_getname_np(pthread_self(), str, 16);
 }

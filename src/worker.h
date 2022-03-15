@@ -25,6 +25,4 @@ void worker_destroy(worker_control_t *control);
 
 void worker_submit(worker_control_t *control, int fd);
 
-void get_thread_name(char *str);
-
 #endif
