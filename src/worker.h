@@ -13,6 +13,10 @@ typedef struct worker_control_t
     unsigned int worker_count;
     pthread_t *worker_threads;
     ProcessingFunction func;
+
+    // Graceful shutdown
+    volatile unsigned int active;
+    pthread_mutex_t active_lock;
 } worker_control_t;
 
 worker_control_t *worker_init(unsigned int count, unsigned int buffer_slots, ProcessingFunction func);
