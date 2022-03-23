@@ -35,8 +35,6 @@ struct mtwww_options_t {
 
 // Keep here so that it is accessible to everything
 struct mtwww_options_t opt;
-worker_control_t *worker;
-int socket_desc;
 volatile sig_atomic_t active;
 
 void __shutdown_sig_handler(int sig) {
@@ -192,6 +190,11 @@ int main(int argc, char **argv) {
         return EXIT_FAILURE;
     }
 
+    printf("Loading webserver...\n");
+
+    worker_control_t *worker;
+    int socket_desc;
+
     // Make sure we clean up after ourselves. Without this,
     // the socket may be left bound to the given port even after
     // the process exits
@@ -203,11 +206,10 @@ int main(int argc, char **argv) {
     shutdown_signal_handler.sa_flags &= ~SA_RESTART;
     sigaction(SIGINT, &shutdown_signal_handler, NULL);
 
-    printf("Hello world!");
     int client_sock, client_size;
     struct sockaddr_in server_addr, client_addr;
 
-    // Create non-blocking socket
+    // Create socket
     socket_desc = socket(AF_INET, SOCK_STREAM, 0);
 
     if (socket_desc < 0) {
