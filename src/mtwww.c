@@ -14,6 +14,7 @@
 
 #define DELIMITER " "
 #define FILE_NOT_FOUND_DEFAULT "<p>File not found</p>\n"
+#define MAX_PATH_LEN 512
 
 struct mtwww_options_t {
     char *path;
@@ -98,8 +99,12 @@ int __read_and_send_file(char *filename, char *cwd, int client_socket) {
     strcpy(abs_path, cwd);
     strncat(abs_path, filename, 512 - strlen(abs_path));
 
+    printf("Accessing file %s\n", abs_path);
+
     // Handle case where file doesn't exist
     if (!__file_isreg(abs_path)) {
+        printf("File doesn't exist! Returning error instead.\n");
+
         // Allow user to specify a 404 page
         memset(abs_path, 0, 512);
 
@@ -147,14 +152,14 @@ void handle_connection(int file_descriptor) {
     char cwd[2048];
     strncpy(cwd, opt.path, 2048);
 
-    char request[3][256];
+    char request[3][MAX_PATH_LEN];
     char *token = strtok(client_message, DELIMITER);
 
     int tokenPosition = 0;
     while (token != NULL) {
         if (tokenPosition < 4) {
             // Avoid overflowing if the request is massive
-            strncpy(request[tokenPosition], token, 256);
+            strncpy(request[tokenPosition], token, MAX_PATH_LEN);
         }
 
         token = strtok(NULL, DELIMITER);
