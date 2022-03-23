@@ -11,12 +11,7 @@
  * shall be utilized to implement the semaphore operations.
  */
 
-typedef struct SEM
-{
-    pthread_mutex_t lock;
-    pthread_cond_t cond;
-    unsigned int value;
-} SEM;
+typedef struct SEM SEM;
 
 /* Creates a new semaphore.
  *

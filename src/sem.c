@@ -1,27 +1,30 @@
 #include "sem.h"
-#include <stdlib.h>
-#include <stdio.h>
 
-SEM *sem_init(int initial)
-{
+#include <stdio.h>
+#include <stdlib.h>
+
+struct SEM {
+    pthread_mutex_t lock;
+    pthread_cond_t cond;
+    unsigned int value;
+};
+
+SEM *sem_init(int initial) {
     SEM *sem = malloc(sizeof(SEM));
-    if (sem == NULL)
-    {
+    if (sem == NULL) {
         return NULL;
     }
 
     // Nonrecursive lock
     int lock_res = pthread_mutex_init(&sem->lock, NULL);
-    if (lock_res != 0)
-    {
+    if (lock_res != 0) {
         free(sem);
         return NULL;
     }
 
     // Condition variable for waiting for increment
     int cond_res = pthread_cond_init(&sem->cond, NULL);
-    if (cond_res != 0)
-    {
+    if (cond_res != 0) {
         pthread_mutex_destroy(&sem->lock);
         free(sem);
         return NULL;
@@ -31,15 +34,13 @@ SEM *sem_init(int initial)
     return sem;
 }
 
-int sem_del(SEM *sem)
-{
+int sem_del(SEM *sem) {
     pthread_mutex_destroy(&sem->lock);
     pthread_cond_destroy(&sem->cond);
     free(sem);
 }
 
-void P(SEM *sem)
-{
+void P(SEM *sem) {
     pthread_mutex_lock(&sem->lock);
 
     /*
@@ -54,8 +55,7 @@ void P(SEM *sem)
     time.
     */
     unsigned int val = sem->value;
-    while (!val)
-    {
+    while (!val) {
         pthread_cond_wait(&sem->cond, &sem->lock);
         val = sem->value;
     }
@@ -64,8 +64,7 @@ void P(SEM *sem)
     pthread_mutex_unlock(&sem->lock);
 }
 
-void V(SEM *sem)
-{
+void V(SEM *sem) {
     pthread_mutex_lock(&sem->lock);
     sem->value++;
     pthread_mutex_unlock(&sem->lock);

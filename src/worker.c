@@ -1,36 +1,32 @@
 #include "worker.h"
-#include <stdlib.h>
+
 #include <signal.h>
 #include <stdio.h>
+#include <stdlib.h>
 
-int __check_active(worker_control_t *ctl)
-{
+int __check_active(worker_control_t *ctl) {
     pthread_mutex_lock(&ctl->active_lock);
     unsigned int res = ctl->active;
     pthread_mutex_unlock(&ctl->active_lock);
     return res;
 }
 
-void __deactivate(worker_control_t *ctl)
-{
+void __deactivate(worker_control_t *ctl) {
     pthread_mutex_lock(&ctl->active_lock);
     ctl->active = 0;
     pthread_mutex_unlock(&ctl->active_lock);
 }
 
-void *__work(void *ctl_void)
-{
+void *__work(void *ctl_void) {
     worker_control_t *control = (worker_control_t *)ctl_void;
 
     // Loop forever. Use SIGKILL to terminate. Could alternatively make some constant
     // boolean poll to check if the process should terminate, then pthread_join in the
     // destroy function
-    while (1)
-    {
+    while (1) {
         int fd = bb_get(control->fd_buffer);
         // If it is not active, we should not process the request
-        if (!__check_active(control))
-        {
+        if (!__check_active(control)) {
             break;
         }
 
@@ -41,32 +37,27 @@ void *__work(void *ctl_void)
     return EXIT_SUCCESS;
 }
 
-worker_control_t *worker_init(unsigned int worker_count, unsigned int buffer_slots, ProcessingFunction func)
-{
+worker_control_t *worker_init(unsigned int worker_count, unsigned int buffer_slots, ProcessingFunction func) {
     BNDBUF *buf = bb_init(buffer_slots);
-    if (buf == NULL)
-    {
+    if (buf == NULL) {
         return NULL;
     }
 
     worker_control_t *wc = malloc(sizeof(worker_control_t));
-    if (wc == NULL)
-    {
+    if (wc == NULL) {
         bb_del(buf);
         return NULL;
     }
 
     pthread_t *threads = malloc(sizeof(pthread_t) * worker_count);
-    if (threads == NULL)
-    {
+    if (threads == NULL) {
         free(wc);
         bb_del(buf);
         return NULL;
     }
 
     int lock_res = pthread_mutex_init(&wc->active_lock, NULL);
-    if (lock_res == -1)
-    {
+    if (lock_res == -1) {
         free(wc);
         free(threads);
         bb_del(buf);
@@ -77,8 +68,7 @@ worker_control_t *worker_init(unsigned int worker_count, unsigned int buffer_slo
     wc->fd_buffer = buf;
     wc->func = func;
 
-    for (unsigned int i = 0; i < worker_count; i++)
-    {
+    for (unsigned int i = 0; i < worker_count; i++) {
         pthread_create(&threads[i], NULL, __work, (void *)wc);
     }
 
@@ -88,19 +78,16 @@ worker_control_t *worker_init(unsigned int worker_count, unsigned int buffer_slo
     return wc;
 }
 
-void worker_destroy(worker_control_t *control)
-{
+void worker_destroy(worker_control_t *control) {
     __deactivate(control);
 
     // Push a number of negative values to the ring buffer so that there is a
     // signal to the processing threads, ensuring that they actually terminate
-    for (unsigned int i = 0; i < control->worker_count; i++)
-    {
+    for (unsigned int i = 0; i < control->worker_count; i++) {
         worker_submit(control, -1);
     }
 
-    for (unsigned int i = 0; i < control->worker_count; i++)
-    {
+    for (unsigned int i = 0; i < control->worker_count; i++) {
         pthread_join(control->worker_threads[i], NULL);
         printf("Terminated worker thread %u\n", i);
     }
@@ -110,7 +97,6 @@ void worker_destroy(worker_control_t *control)
     free(control);
 }
 
-void worker_submit(worker_control_t *control, int fd)
-{
+void worker_submit(worker_control_t *control, int fd) {
     bb_add(control->fd_buffer, fd);
 }

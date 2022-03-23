@@ -8,14 +8,14 @@
 /*
  * This header defines a set of functions allowing creation of an arbitrary number of
  * worker threads. The "work" allowed by these definitions should be contained within
- * the provided ProcessingFunction, and should only take a single integer as input. 
- * 
+ * the provided ProcessingFunction, and should only take a single integer as input.
+ *
  * For our specific use case this integer will always be a file descriptor.
  */
 
 /**
- * Pretty type definition for a function that processes a file descriptor. What this 
- * "processing" entails is not relevant for the functionality of the methods defined 
+ * Pretty type definition for a function that processes a file descriptor. What this
+ * "processing" entails is not relevant for the functionality of the methods defined
  * in this header.
  */
 typedef void (*ProcessingFunction)(int);
@@ -44,9 +44,9 @@ typedef struct worker_control_t {
 
 /**
  * Initializes a new worker thread pool
- * 
+ *
  * @param count        The amount of worker threads
- * @param buffer_slots The amount of slots that should be processing in the ring buffer 
+ * @param buffer_slots The amount of slots that should be processing in the ring buffer
  *                     used to supply the threads with work
  * @param func         The processing function
  */
@@ -54,14 +54,14 @@ worker_control_t *worker_init(unsigned int count, unsigned int buffer_slots, Pro
 
 /**
  * Destroys the given worker pool, waiting for each thread to exit before returning
- * 
+ *
  * @param control The worker pool
  */
 void worker_destroy(worker_control_t *control);
 
 /**
  * Submits new work to the worker pool in the form of a file descriptor
- * 
+ *
  * @param control The worker pool
  * @param fd      The file descriptor
  */

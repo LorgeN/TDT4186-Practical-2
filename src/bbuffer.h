@@ -1,8 +1,8 @@
 #ifndef ____BBUFFER___H___
 #define ____BBUFFER___H___
 
-#include <sem.h>
 #include <pthread.h>
+#include <sem.h>
 
 /*
  * Bounded Buffer implementation to manage int values that supports multiple
@@ -12,26 +12,7 @@
  * of readers and writers to the bounded buffer.
  */
 
-typedef struct BNDBUF
-{
-    unsigned int size;
-    unsigned int tail;
-    unsigned int head;
-    int *data;
-
-    /*
-    We have to use semaphores and a separate lock. The semaphores simply keep track of
-    available resources. A case exists where e.g. two (or more) processes may attempt to
-    insert data at the same time. If there are two (or more) available slots these will
-    collide. We could use another semaphore for this aswell, but there is really no
-    advantage to doing that to just using a normal lock. 
-    */
-
-    pthread_mutex_t rw_lock; // Lock for making sure we don't concurrently modify
-
-    SEM *add_lock; // Keeps track of amount of open slots in the buffer
-    SEM *rem_lock; // Keeps track of amount of closed slots in the buffer
-} BNDBUF;
+typedef struct BNDBUF BNDBUF;
 
 /* Creates a new Bounded Buffer.
  *
