@@ -113,13 +113,72 @@ void read_file(char *filename, char* cwd, int client_socket) {
     }
 }
 
+void handle_connection(int file_descriptor) {
+    printf("FD %d\n", file_descriptor);
+    int socket_desc, client_size;
+    struct sockaddr_in server_addr, client_addr;
+    char server_message[2000], client_message[2000];
+
+    // Receive client's message:
+    if (recv(file_descriptor, client_message, sizeof(client_message), 0) < 0)
+    {
+        printf("Couldn't receive\n");
+        return;
+    }
+
+    char cwd[2048];
+    strncpy(cwd, opt.path, 2048);
+
+    printf("Trying to access more memory\n");
+    char request[3][4096];
+
+    char delim[] = " ";
+    char *token = strtok(client_message, delim);
+
+    int tokenPossition = 0;
+
+    while (token != NULL)
+    {
+        printf("Trying to input to memmory\n");
+        if (tokenPossition < 4)
+        {
+            strcpy(request[tokenPossition], token);
+        }
+        printf("%s\n", token);
+        token = strtok(NULL, delim);
+        tokenPossition++;
+    }
+
+    read_file(request[1], cwd, file_descriptor);
+
+    printf("While loop finished\n");
+
+    printf("Token first possition: %s\n", request[0]);
+    printf("Token path: %s \n", request[1]);
+
+    if (send(file_descriptor, server_message, strlen(server_message), 0) < 0)
+    {
+        printf("Can't send\n");
+        return;
+    }
+
+    // Closing the socket:
+    close(file_descriptor);
+}
+
 
 int main(int argc, char **argv)
-{
+{   
+
+    /*TODO: Legge inn worker_init og struct */
+
+
     // __read_options returns 1 if it fails, 0 otherwise
     if (__read_options(&opt, argc, argv)) {
         return EXIT_FAILURE;
     }
+
+    worker_control_t *worker = worker_init(opt.worker_threads, opt.buffer_slots, handle_connection);
 
     char cwd[2048];
     strncpy(cwd, opt.path, 2048);
@@ -173,57 +232,14 @@ int main(int argc, char **argv)
         if (client_sock < 0)
         {
             printf("Can't accept\n");
-            return -1;
+            return EXIT_FAILURE;
         }
         printf("Client connected at IP: %s and port: %i\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
 
-        // Receive client's message:
-        if (recv(client_sock, client_message, sizeof(client_message), 0) < 0)
-        {
-            printf("Couldn't receive\n");
-            return -1;
-        }
-
-        printf("Trying to access more memory\n");
-        char request[3][4096];
-
-        char delim[] = " ";
-        char *token = strtok(client_message, delim);
-
-        int tokenPossition = 0;
-
-        while (token != NULL)
-        {
-            printf("Trying to input to memmory\n");
-            if (tokenPossition < 4)
-            {
-                strcpy(request[tokenPossition], token);
-            }
-            printf("%s\n", token);
-            token = strtok(NULL, delim);
-            tokenPossition++;
-        }
-
-        read_file(request[1], cwd, client_sock);
-
-        printf("While loop finished\n");
-
-        printf("Token first possition: %s\n", request[0]);
-        printf("Token path: %s \n", request[1]);
-
-        // Respond to client:
-        strcpy(server_message, "This is the server's message.");
-
-        if (send(client_sock, server_message, strlen(server_message), 0) < 0)
-        {
-            printf("Can't send\n");
-            return -1;
-        }
-
-        // Closing the socket:
-        close(client_sock);
+        /*TODO: Legge inn worker_submit */
+        worker_submit(worker, client_sock);
     };
     close(socket_desc);
 
-    return 0;
+    return EXIT_SUCCESS;
 }
