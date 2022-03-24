@@ -101,7 +101,7 @@ int __read_and_send_file(char *filename, char *cwd, int client_socket) {
     strcpy(abs_path, cwd);
     strncat(abs_path, filename, 512 - strlen(abs_path));
 
-    printf("Accessing file %s\n", abs_path);
+    printf("Accessing file \"%s\"\n", abs_path);
 
     // Handle case where file doesn't exist
     if (!__file_isreg(abs_path)) {
