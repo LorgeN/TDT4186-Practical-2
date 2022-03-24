@@ -1,5 +1,4 @@
 #include <arpa/inet.h>
-#include <poll.h>
 #include <pthread.h>
 #include <signal.h>
 #include <stdio.h>
@@ -15,16 +14,7 @@
 
 #define DELIMITER " "
 #define FILE_NOT_FOUND_DEFAULT "<p>File not found</p>\n"
-
-typedef struct server_t {
-    int sock;
-    struct sockaddr_in addr;
-} server_t;
-
-typedef struct conn_t {
-    struct sockaddr_in remote_addr;  // todo: remove this later
-    struct sockaddr_in local_addr;
-} conn_t;
+#define MAX_PATH_LEN 512
 
 struct mtwww_options_t {
     char *path;
@@ -105,12 +95,18 @@ int __read_options(struct mtwww_options_t *opt, int argc, char **argv) {
 int __read_and_send_file(char *filename, char *cwd, int client_socket) {
     FILE *fptr;
 
+    printf("File descriptor: %d\n", client_socket);
+
     char abs_path[512] = {0};
     strcpy(abs_path, cwd);
     strncat(abs_path, filename, 512 - strlen(abs_path));
 
+    printf("Accessing file %s\n", abs_path);
+
     // Handle case where file doesn't exist
     if (!__file_isreg(abs_path)) {
+        printf("File doesn't exist! Returning error instead.\n");
+
         // Allow user to specify a 404 page
         memset(abs_path, 0, 512);
 
@@ -118,7 +114,9 @@ int __read_and_send_file(char *filename, char *cwd, int client_socket) {
         strncat(abs_path, "/404.html", 512 - strlen(abs_path));
 
         if (!__file_isreg(abs_path)) {
-            if (send(client_socket, FILE_NOT_FOUND_DEFAULT, strlen(FILE_NOT_FOUND_DEFAULT), 0) < 0) {
+            // Define the MSG_NOSIGNAL flag so that we dont crash the entire program if the
+            // client closes the socket before we are done
+            if (send(client_socket, FILE_NOT_FOUND_DEFAULT, strlen(FILE_NOT_FOUND_DEFAULT), MSG_NOSIGNAL) < 0) {
                 return 1;
             }
 
@@ -130,27 +128,21 @@ int __read_and_send_file(char *filename, char *cwd, int client_socket) {
         return 1;
     }
 
-    fseek(fptr, 0, SEEK_END);
-
-    long size = ftell(fptr);
-
-    fseek(fptr, 0, SEEK_SET);
-    printf("%lu", size);
-
     char buffer[1000] = {0};
     while (fgets(buffer, sizeof(buffer), fptr) != NULL) {
-        if (send(client_socket, buffer, strlen(buffer), 0) < 0) {
+        // Define the MSG_NOSIGNAL flag so that we dont crash the entire program if the
+        // client closes the socket before we are done
+        if (send(client_socket, buffer, strlen(buffer), MSG_NOSIGNAL) < 0) {
+            fclose(fptr);
             return 1;
         }
     }
 
+    fclose(fptr);
     return 0;
 }
 
 void handle_connection(int file_descriptor) {
-    printf("FD %d\n", file_descriptor);
-
-    int socket_desc, client_size;
     struct sockaddr_in server_addr, client_addr;
 
     char client_message[2000] = {0};
@@ -164,14 +156,14 @@ void handle_connection(int file_descriptor) {
     char cwd[2048];
     strncpy(cwd, opt.path, 2048);
 
-    char request[3][256];
+    char request[3][MAX_PATH_LEN];
     char *token = strtok(client_message, DELIMITER);
 
     int tokenPosition = 0;
     while (token != NULL) {
         if (tokenPosition < 4) {
             // Avoid overflowing if the request is massive
-            strncpy(request[tokenPosition], token, 256);
+            strncpy(request[tokenPosition], token, MAX_PATH_LEN);
         }
 
         token = strtok(NULL, DELIMITER);
@@ -207,27 +199,40 @@ int main(int argc, char **argv) {
     sigaction(SIGINT, &shutdown_signal_handler, NULL);
 
     int client_sock, client_size;
-    struct sockaddr_in server_addr, client_addr;
+    struct sockaddr_in6 server_addr, client_addr;
+
+    client_size = sizeof(client_addr);
+    char client_addr_str[INET6_ADDRSTRLEN];
 
     // Create socket
-    socket_desc = socket(AF_INET, SOCK_STREAM, 0);
+    socket_desc = socket(AF_INET6, SOCK_STREAM, 0);
 
     if (socket_desc < 0) {
         printf("Error while creating socket\n");
-        return -1;
+        return EXIT_FAILURE;
+    }
+
+    int ipv6_only_val = 0;
+    // Make sure IPV6_V6ONLY is disabled
+    if (setsockopt(socket_desc, IPPROTO_IPV6, IPV6_V6ONLY, &ipv6_only_val, sizeof(ipv6_only_val)) < 0) {
+        printf("Failed to disable IPV6_ONLY option\n");
+        close(socket_desc);
+        return EXIT_FAILURE;
     }
 
     printf("Socket created successfully\n");
 
-    // Set port and IP:
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(opt.port);
-    server_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    // Set server port and IP
+    memset(&server_addr, 0, sizeof(server_addr));
+    server_addr.sin6_family = AF_INET6;
+    server_addr.sin6_port = htons(opt.port);
+    server_addr.sin6_addr = in6addr_any;
 
     // Bind to the set port and IP:
     if (bind(socket_desc, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
         printf("Couldn't bind to the port\n");
-        return -1;
+        close(socket_desc);
+        return EXIT_FAILURE;
     }
 
     printf("Done with binding\n");
@@ -235,18 +240,19 @@ int main(int argc, char **argv) {
     // Listen for clients:
     if (listen(socket_desc, 1) < 0) {
         printf("Error while listening\n");
-        return -1;
+        close(socket_desc);
+        return EXIT_FAILURE;
     }
 
     printf("\nCreating worker thread pool...\n");
     worker = worker_init(opt.worker_threads, opt.buffer_slots, handle_connection);
+    if (worker == NULL) {
+        printf("Failed to create worker thread pool!\n");
+        close(socket_desc);
+        return EXIT_FAILURE;
+    }
+
     printf("Done! Listening for incoming connections on port %d...\n", opt.port);
-
-    client_size = sizeof(client_addr);
-
-    struct pollfd pollfds[1];
-    pollfds[0].fd = socket_desc;
-    pollfds[0].events = POLLIN | POLLPRI;
 
     active = 1;
     while (active) {
@@ -256,10 +262,12 @@ int main(int argc, char **argv) {
             continue;
         }
 
-        printf("Client connected at IP: %s and port: %i\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
+        if (inet_ntop(AF_INET6, &client_addr.sin6_addr, client_addr_str, sizeof(client_addr_str))) {
+            printf("Client connected at IP: %s and port %i (Socket %d)\n", client_addr_str, ntohs(client_addr.sin6_port), client_sock);
+        }
 
         worker_submit(worker, client_sock);
-    };
+    }
 
     printf("Shutting down workers...\n");
     worker_destroy(worker);
