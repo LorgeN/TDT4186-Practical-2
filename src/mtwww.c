@@ -95,6 +95,8 @@ int __read_options(struct mtwww_options_t *opt, int argc, char **argv) {
 int __read_and_send_file(char *filename, char *cwd, int client_socket) {
     FILE *fptr;
 
+    printf("File descriptor: %d\n", client_socket);
+
     char abs_path[512] = {0};
     strcpy(abs_path, cwd);
     strncat(abs_path, filename, 512 - strlen(abs_path));
@@ -112,7 +114,9 @@ int __read_and_send_file(char *filename, char *cwd, int client_socket) {
         strncat(abs_path, "/404.html", 512 - strlen(abs_path));
 
         if (!__file_isreg(abs_path)) {
-            if (send(client_socket, FILE_NOT_FOUND_DEFAULT, strlen(FILE_NOT_FOUND_DEFAULT), 0) < 0) {
+            // Define the MSG_NOSIGNAL flag so that we dont crash the entire program if the
+            // client closes the socket before we are done
+            if (send(client_socket, FILE_NOT_FOUND_DEFAULT, strlen(FILE_NOT_FOUND_DEFAULT), MSG_NOSIGNAL) < 0) {
                 return 1;
             }
 
@@ -124,17 +128,17 @@ int __read_and_send_file(char *filename, char *cwd, int client_socket) {
         return 1;
     }
 
-    fseek(fptr, 0, SEEK_END);
-    long size = ftell(fptr);
-    fseek(fptr, 0, SEEK_SET);
-
     char buffer[1000] = {0};
     while (fgets(buffer, sizeof(buffer), fptr) != NULL) {
-        if (send(client_socket, buffer, strlen(buffer), 0) < 0) {
+        // Define the MSG_NOSIGNAL flag so that we dont crash the entire program if the
+        // client closes the socket before we are done
+        if (send(client_socket, buffer, strlen(buffer), MSG_NOSIGNAL) < 0) {
+            fclose(fptr);
             return 1;
         }
     }
 
+    fclose(fptr);
     return 0;
 }
 
@@ -259,7 +263,7 @@ int main(int argc, char **argv) {
         }
 
         if (inet_ntop(AF_INET6, &client_addr.sin6_addr, client_addr_str, sizeof(client_addr_str))) {
-            printf("Client connected at IP: %s and port: %i\n", client_addr_str, ntohs(client_addr.sin6_port));
+            printf("Client connected at IP: %s and port %i (Socket %d)\n", client_addr_str, ntohs(client_addr.sin6_port), client_sock);
         }
 
         worker_submit(worker, client_sock);

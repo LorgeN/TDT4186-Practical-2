@@ -24,6 +24,14 @@ Usage: `./mtwwwd <www-path> <port> <worker_threads> <buffer_slots>`
 curl --http0.9 -6 http://\[::1\]:<port>/lorgs.html
 ```
 
+### Useful commands
+
+View system calls like accept, close etc.
+
+```bash
+strace -f -e trace=close,accept4,accept,pipe,open ./mtwwwd ./src/www 6970 8 16
+```
+
 ## Exploit (Task e)
 
 This server currently features no verification that the file request is actually within the working directory specified in the command line. For example,
